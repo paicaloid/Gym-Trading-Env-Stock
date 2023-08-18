@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 88
+extend-ignore = E203
+exclude =
+    src/gym_trading_env,
+    src/gym_trading_env/environments.py
