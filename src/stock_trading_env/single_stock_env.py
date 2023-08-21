@@ -3,6 +3,9 @@ from gymnasium import spaces
 import pandas as pd
 import numpy as np
 
+from .utils.portfolio_copy import Portfolio, TargetPortfolio
+from .utils.portfolio import SimplePortfolio
+from .utils.history import History
 
 def basic_reward_function():
     pass
@@ -79,12 +82,62 @@ class SingleStockTradingEnv(gym.Env):
         self._info_array = np.array(self.df[self._info_columns])
         self._price_array = np.array(self.df["close"])
 
+    def _get_price(self, delta=0):
+        return self._price_array[self._idx + delta]
+
+    def _get_obs(self):
+        for i, dff in enumerate(self.dynamic_feature_functions):
+            self._obs_array[
+                self._idx,
+                self._nb_static_features + i
+            ] = dff(self.historical_info)
+
+        if self.windows is None:
+            _step_index = self._idx
+        else:
+            _step_index = np.arange(self._idx + 1 - self.windows , self._idx + 1)
+        return self._obs_array[_step_index]
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+
+        self._step = 0
         if self.initial_position == 'random':
             self._position = np.random.choice(self.positions)
         else:
             self._position = self.initial_position
 
+        self._idx = 0
         if self.windows is not None:
             self._idx = self.windows - 1
+        if self.max_episode_duration != 'max':
+            self._idx = np.random.randint(
+                low=self._idx,
+                high=len(self.df) - self.max_episode_duration - self._idx
+            )
+
+        # self._portfolio = TargetPortfolio(
+        #     position=self._position,
+        #     value=self.portfolio_initial_value,
+        #     price=self._get_price()
+        # )
+        self._portfolio = SimplePortfolio(
+            position=self._position,
+            init_cash=self.portfolio_initial_value,
+            current_price=self._get_price(),
+            size_granularity=100,
+        )
+
+        self.historical_info = History(max_size=len(self.df))
+        self.historical_info.set(
+            idx=self._idx,
+            step=self._step,
+            date=self.df.index.values[self._idx],
+            position_index=self.positions.index(self._position),
+            position=self._position,
+            data=dict(zip(self._info_columns, self._info_array[self._idx])),
+            portfolio_valuation=self.portfolio_initial_value,
+            reward=0,
+        )
+
+        return self._get_obs(), self.historical_info[0]
