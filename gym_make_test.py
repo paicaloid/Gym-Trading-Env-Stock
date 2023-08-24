@@ -19,16 +19,15 @@ env = gym.make(
     df=df_add["2020-01-01":],
     positions=[0, 0.25, 0.5, 0.75, 1],
     portfolio_initial_value=1000000,
+    max_episode_duration=500
 )
 
 done, truncated = False, False
 observation, info = env.reset()
 count = 0
 while not done and not truncated:
-    count += 1
     action = env.action_space.sample()
     observation, reward, done, truncated, info = env.step(action)
     print(info)
 
-    if count == 10:
-        break
+env.save_for_render(dir = "render_logs")
