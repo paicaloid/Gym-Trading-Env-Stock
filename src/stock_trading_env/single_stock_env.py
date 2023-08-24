@@ -1,3 +1,5 @@
+from typing import Callable, Optional, Union
+
 import gymnasium as gym
 import numpy as np
 import pandas as pd
@@ -19,18 +21,18 @@ class SingleStockTradingEnv(gym.Env):
     def __init__(
         self,
         df: pd.DataFrame,
-        positions: list = [0, 1],
-        dynamic_feature_functions=[],
-        reward_function=basic_reward_function,
-        windows=None,
-        trading_fees=0,
-        portfolio_initial_value=1000,
-        initial_position="random",
-        max_episode_duration="max",
-        verbose=1,
-        name="Stock",
-        render_mode="logs",
-    ):
+        positions: list[Union[int, float]] = [0, 1],
+        dynamic_feature_functions: list[Callable] = [],
+        reward_function: Callable = basic_reward_function,
+        windows: Optional[int] = None,
+        trading_fees: float = 0.0,
+        portfolio_initial_value: int = 1000,
+        initial_position: Union[int, float, str] = "random",
+        max_episode_duration: Union[int, str] = "max",
+        verbose: int = 1,
+        name: str = "StockTradingEnv",
+        render_mode: Optional[str] = "logs",
+    ) -> None:
         self.max_episode_duration = max_episode_duration
         self.name = name
         self.verbose = verbose
@@ -61,7 +63,7 @@ class SingleStockTradingEnv(gym.Env):
                 -np.inf, np.inf, shape=[self.windows, self._nb_features]
             )
 
-    def _set_df(self, df):
+    def _set_df(self, df: pd.DataFrame) -> None:
         df = df.copy()
         self._features_columns = [col for col in df.columns if "feature" in col]
         self._info_columns = list(
