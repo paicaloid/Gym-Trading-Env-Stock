@@ -65,6 +65,8 @@ class SingleStockTradingEnv(gym.Env):
                 -np.inf, np.inf, shape=[self.windows, self._nb_features]
             )
 
+        self.log_metrics = []
+
     def _set_df(self, df: pd.DataFrame) -> None:
         df = df.copy()
         self._features_columns = [col for col in df.columns if "feature" in col]
@@ -90,6 +92,12 @@ class SingleStockTradingEnv(gym.Env):
 
     def _get_price_open(self, delta=0):
         return self._price_open_array[self._idx + delta]
+
+    def add_metric(self, name, function):
+        self.log_metrics.append({
+            'name': name,
+            'function': function
+        })
 
     def _get_obs(self):
         for i, dff in enumerate(self.dynamic_feature_functions):
@@ -207,9 +215,11 @@ class SingleStockTradingEnv(gym.Env):
             reward = self.reward_function(self.historical_info)
             self.historical_info["reward", -1] = reward
 
-        if done or truncated:
-            pass
 
+        if done or truncated:
+            self.calculate_metrics()
+            self.log()
+        # print(done, truncated)
         return (
             self._get_obs(),
             self.historical_info["reward", -1],
@@ -231,6 +241,24 @@ class SingleStockTradingEnv(gym.Env):
 
         if not os.path.exists(dir): os.makedirs(dir)
         render_df.to_pickle(f"{dir}/{self.name}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl")
+    def calculate_metrics(self):
+        self.results_metrics = {
+            "Market Return" : f"{100*(self.historical_info['data_close', -1] / self.historical_info['data_close', 0] -1):5.2f}%",
+            "Portfolio Return" : f"{100*(self.historical_info['portfolio_valuation', -1] / self.historical_info['portfolio_valuation', 0] -1):5.2f}%",
+        }
+
+        for metric in self.log_metrics:
+            self.results_metrics[metric['name']] = metric['function'](self.historical_info)
+
+    def get_metrics(self):
+        return self.results_metrics
+
+    def log(self):
+        if self.verbose > 0:
+            text = ""
+            for key, value in self.results_metrics.items():
+                text += f"{key} : {value}   |   "
+            print(text)
 
     # def step(self, position_index=None):
     #     if position_index is not None:
