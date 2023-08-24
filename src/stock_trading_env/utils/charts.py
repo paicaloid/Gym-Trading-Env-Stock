@@ -295,8 +295,8 @@ def charts(df, lines = []):
         Line()
         .add_xaxis(xaxis_data = x_data)
         .add_yaxis(
-            series_name = "Unrealized Profits",
-            y_axis = df["unrealized_profits"].tolist(),
+            series_name = "unrealized_pnl",
+            y_axis = df["unrealized_pnl"].tolist(),
             is_smooth=False,
             xaxis_index= 1,
             yaxis_index= 1,
@@ -329,7 +329,7 @@ def charts(df, lines = []):
             legend_opts=opts.LegendOpts(is_show=False),
             title_opts= opts.TitleOpts(
                 is_show=True,
-                title = "Unrealized Profits",
+                title = "unrealized_pnl",
                 pos_top= str(architecture["unrealized"]["top"] - 3) + "%",
                 pos_left= "50%", text_align="center", 
                 title_textstyle_opts= opts.TextStyleOpts(font_size='14px', color="#adadad", font_weight="400")
