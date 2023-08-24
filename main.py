@@ -27,30 +27,27 @@ def plot_learning_curve(x, scores):
     plt.title('Running average scores')
     plt.show()
 
-df = pd.read_csv("examples/data/AAPL.csv", parse_dates=["date"], index_col="date")
-df.sort_index(inplace=True)
-df.dropna(inplace=True)
+df = pd.read_csv("examples/data/AAPL.csv", parse_dates=["date"], index_col= "date")
+df.sort_index(inplace= True)
+df.dropna(inplace= True)
 df.drop_duplicates(inplace=True)
 
-df_add = df.copy()
-df_add["feature_close"] = df_add["close"].pct_change()
-df_add["feature_open"] = df_add["open"] / df_add["close"]
-df_add["feature_high"] = df_add["high"] / df_add["close"]
-df_add["feature_low"] = df_add["low"] / df_add["close"]
+# Generating features
+# WARNING : the column names need to contain keyword 'feature' !
+df["feature_close"] = df["close"].pct_change()
+df["feature_open"] = df["open"]/df["close"]
+df["feature_high"] = df["high"]/df["close"]
+df["feature_low"] = df["low"]/df["close"]
+# df["feature_volume"] = df["Volume USD"] / df["Volume USD"].rolling(7*24).max()
+df.dropna(inplace= True)
 
-# def reward_function(history):
-#     return np.log(history["portfolio_valuation", -1] / history["portfolio_valuation", -2]) #log (p_t / p_t-1 )
+def reward_function(history):
+    return np.log(history["portfolio_valuation", -1] / history["portfolio_valuation", -2]) #log (p_t / p_t-1 )
 
 
-env = SingleStockTradingEnv(
-    df=df_add["2020-01-01":],
-    positions=[0, 0.25, 0.5, 0.75, 1],
-    portfolio_initial_value=100000,
-    initial_position=0,
-)
 
 # env = gym.make(
-#         "TradingEnv",
+#         "single-stock-v0",
 #         name="BTCUSD",
 #         df=df,
 #         windows=5,
@@ -63,10 +60,26 @@ env = SingleStockTradingEnv(
 #         max_episode_duration=500,
 #     )
 
-# env.add_metric('Position Changes', lambda history : np.sum(np.diff(history['position']) != 0) )
-# env.add_metric('Episode Lenght', lambda history : len(history['position']) )
-# env.add_metric('Reward', lambda history : history['reward'][-1])
-# env.add_metric('Portfolio Valuation', lambda history : history['portfolio_valuation'][-1])
+
+env = gym.make(
+        "single-stock-v0",
+        name="BTCUSD",
+        df=df,
+        windows=1,
+        positions=[0, 0.5, 1],  # From -1 (=SHORT), to +1 (=LONG)
+        initial_position='random',  #Initial position
+        trading_fees=0,  # 0.01% per stock buy / sell
+        # borrow_interest_rate=0.0003/100,  #per timestep (= 1h here)
+        # reward_function=reward_function,
+        portfolio_initial_value=100000,  # in FIAT (here, USD)
+        max_episode_duration=100,
+        verbose=1
+    )
+
+env.add_metric('Position Changes', lambda history : np.sum(np.diff(history['position']) != 0) )
+env.add_metric('Episode Lenght', lambda history : len(history['position']) )
+env.add_metric('Reward', lambda history : history['reward'][-1])
+env.add_metric('Portfolio Valuation', lambda history : history['portfolio_valuation'][-1])
 
 N = 20
 batch_size = 5
@@ -98,13 +111,9 @@ for i in range(episode):
     truncated = False
     while not done and not truncated:
         action, prob, val = agent.choose_action(observation)
-        print("---------------------------------------")
-        print(f"episode : {i}")
-        print(f"action : {action}")
-        observation_, reward, done, truncated, info, port_value = env.step(action)
-        print(f"done : {done}")
-        print(f"reward : {reward}")
-        print(f"port value: {port_value}")
+
+        observation_, reward, done, truncated, info = env.step(action)
+
         n_steps += 1
         score += reward
         agent.remember(observation, action, prob, val, reward, done)
