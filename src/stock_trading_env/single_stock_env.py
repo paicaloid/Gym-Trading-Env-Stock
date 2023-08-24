@@ -4,6 +4,8 @@ import gymnasium as gym
 import numpy as np
 import pandas as pd
 from gymnasium import spaces
+import os
+import datetime
 
 from .utils.history import History
 from .utils.portfolio import SimplePortfolio
@@ -130,6 +132,7 @@ class SingleStockTradingEnv(gym.Env):
             position=self._position,
             data=dict(zip(self._info_columns, self._info_array[self._idx])),
             portfolio_valuation=self.portfolio_initial_value,
+            unrealized_profits=0,
             reward=0,
         )
 
@@ -152,7 +155,8 @@ class SingleStockTradingEnv(gym.Env):
         self._step += 1
 
         price = self._get_price()
-        portfolio_value = self._portfolio.get_port_value(price=price)
+        port_info = self._portfolio.get_port_value(price=price)
+        portfolio_value = port_info["port_value"]
 
         done, truncated = False, False
 
@@ -174,6 +178,7 @@ class SingleStockTradingEnv(gym.Env):
             position=self._position,
             data=dict(zip(self._info_columns, self._info_array[self._idx])),
             portfolio_valuation=portfolio_value,
+            unrealized_profits=port_info["unrealized_profits"],
             reward=0,
         )
 
@@ -191,3 +196,17 @@ class SingleStockTradingEnv(gym.Env):
             truncated,
             self.historical_info[-1],
         )
+
+    def save_for_render(self, dir="render_logs"):
+        assert "open" in self.df and "high" in self.df and "low" in self.df and "close" in self.df, "Your DataFrame needs to contain columns : open, high, low, close to render !"
+        columns = list(set(self.historical_info.columns) - set([f"date_{col}" for col in self._info_columns]))
+        history_df = pd.DataFrame(
+            self.historical_info[columns], columns=columns
+        )
+        history_df.set_index("date", inplace=True)
+        history_df.sort_index(inplace=True)
+        self.df.index = self.df.index.map(lambda x: x.values)
+        render_df = self.df.join(history_df, how="inner")
+
+        if not os.path.exists(dir): os.makedirs(dir)
+        render_df.to_pickle(f"{dir}/{self.name}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl")
