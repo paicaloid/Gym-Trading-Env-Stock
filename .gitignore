@@ -9,3 +9,5 @@ my_example.py
 *.egg-info
 *.pkl
 *.ai
+logs
+models
