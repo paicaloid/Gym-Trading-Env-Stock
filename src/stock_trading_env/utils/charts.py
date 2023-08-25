@@ -22,11 +22,12 @@ def charts(df, lines = []):
     architecture = {
         "candlesticks": {"height":15, "top":10},
         "randle_slider": {"top":2},
-        "volumes": {"height":9, "top":30},
-        "portfolios": {"height":9, "top":42},
-        "positions": {"height":9, "top":51},
-        "rewards": {"height":9, "top":65},
-        "unrealized": {"height":9, "top":80},
+        "volumes": {"height":8, "top":28},
+        "portfolios": {"height":8, "top":40},
+        "unrealized": {"height":8, "top":51},
+        "positions": {"height":8, "top":62},
+        "port_size" : {"height":8, "top":73},
+        "rewards": {"height":8, "top":86},
     }
     for data in architecture.values():
         for key in list(data.keys()):data[key + "_%"] = str(data[key]) + "%"
@@ -68,13 +69,13 @@ def charts(df, lines = []):
                 opts.DataZoomOpts(
                     is_show=False,
                     type_="inside",
-                    xaxis_index=[0, 1, 2, 3, 4, 5],
+                    xaxis_index=[0, 1, 2, 3, 4, 5, 6],
                     range_start=98,
                     range_end=100,
                 ),
                 opts.DataZoomOpts(
                     is_show=True,
-                    xaxis_index=[0, 1, 2, 3, 4, 5],
+                    xaxis_index=[0, 1, 2, 3, 4, 5, 6],
                     type_="slider",
                     pos_top=architecture["randle_slider"]["top_%"],
                     range_start=95,
@@ -84,14 +85,14 @@ def charts(df, lines = []):
             #tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="line"),
             axispointer_opts= opts.AxisPointerOpts(
                     is_show=True,
-                    link=[{"xAxisIndex": [0, 1, 2, 3, 4, 5]}],
+                    link=[{"xAxisIndex": [0, 1, 2, 3, 4, 5, 6]}],
                     label=opts.LabelOpts(background_color="#777", is_show=False),
 
             ),
 
         ),
     )[0]
-    
+
     line_key = "ievi4G3vG678Vszad"
     for line in lines:
         line_plot = (
@@ -156,6 +157,49 @@ def charts(df, lines = []):
         )
     ,)[0]
 
+    port_size = (
+        Bar()
+        .add_xaxis(xaxis_data=x_data)
+        .add_yaxis(
+            series_name="portfolio_volume",
+            y_axis=df["portfolio_volume"].tolist(),
+            xaxis_index=1,
+            yaxis_index=1,
+            label_opts=opts.LabelOpts(is_show=False),
+            itemstyle_opts=opts.ItemStyleOpts(
+                color="blue",
+                opacity = 0.3,
+                border_color= "1px solid #CCCCFF",
+            ),
+        )
+        .set_global_opts(
+            xaxis_opts= opts.AxisOpts(
+                axislabel_opts=opts.LabelOpts(is_show=False),
+                axisline_opts=opts.AxisLineOpts(is_show=False),
+                axistick_opts=opts.AxisTickOpts(is_show=False),
+                splitline_opts=opts.SplitLineOpts(
+                    is_show=True, linestyle_opts=opts.LineStyleOpts(color="#ffffff1f")
+                ),
+            ),
+            yaxis_opts= opts.AxisOpts(
+                splitline_opts=opts.SplitLineOpts(
+                    is_show=True, linestyle_opts=opts.LineStyleOpts(color="#ffffff1f")
+                ),
+                axispointer_opts= opts.AxisPointerOpts(is_show = False),
+                axistick_opts= opts.AxisTickOpts(linestyle_opts=opts.LineStyleOpts(opacity=0.3)),
+                axisline_opts= opts.AxisLineOpts(linestyle_opts=opts.LineStyleOpts(opacity=0.3)),
+                axislabel_opts= opts.LabelOpts(color = "grey")
+            ),
+            legend_opts=opts.LegendOpts(is_show=False),
+            title_opts= opts.TitleOpts(
+                is_show=True,
+                title = "portfolio_volume",
+                pos_top= str(architecture["port_size"]["top"] - 1) + "%",
+                pos_left= "50%", text_align="center", 
+                title_textstyle_opts= opts.TextStyleOpts(font_size=12, color="#adadad", font_weight=400)
+            )
+        )
+    ,)[0]
 
     portfolios = (
         Line()
@@ -199,6 +243,7 @@ def charts(df, lines = []):
             )
         )
     ,)[0]
+
     positions = (
         Line()
         .add_xaxis(
@@ -243,7 +288,6 @@ def charts(df, lines = []):
             )
         )
     ,)[0]
-
 
     rewards = (
         Line()
@@ -381,6 +425,12 @@ def charts(df, lines = []):
         unrealized,
         grid_opts=opts.GridOpts(
             pos_left="10%", pos_right="8%", pos_top= architecture["unrealized"]["top_%"], height=architecture["unrealized"]["height_%"]
+        ),
+    )
+    grid_chart.add(
+        port_size,
+        grid_opts=opts.GridOpts(
+            pos_left="10%", pos_right="8%", pos_top= architecture["port_size"]["top_%"], height=architecture["port_size"]["height_%"]
         ),
     )
 
