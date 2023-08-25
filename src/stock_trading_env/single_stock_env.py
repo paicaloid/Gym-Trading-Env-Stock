@@ -1,8 +1,11 @@
-# flake8: noqa
+from typing import Callable, Optional, Union
+
 import gymnasium as gym
 import numpy as np
 import pandas as pd
 from gymnasium import spaces
+import os
+import datetime
 
 from .utils.history import History
 from .utils.portfolio import SimplePortfolio
@@ -20,18 +23,18 @@ class SingleStockTradingEnv(gym.Env):
     def __init__(
         self,
         df: pd.DataFrame,
-        positions: list = [0, 1],
-        dynamic_feature_functions=[],
-        reward_function=basic_reward_function,
-        windows=None,
-        trading_fees=0,
-        portfolio_initial_value=1000,
-        initial_position="random",
-        max_episode_duration="max",
-        verbose=1,
-        name="Stock",
-        render_mode="logs",
-    ):
+        positions: list[Union[int, float]] = [0, 1],
+        dynamic_feature_functions: list[Callable] = [],
+        reward_function: Callable = basic_reward_function,
+        windows: Optional[int] = None,
+        trading_fees: float = 0.0,
+        portfolio_initial_value: int = 1000,
+        initial_position: Union[int, float, str] = "random",
+        max_episode_duration: Union[int, str] = "max",
+        verbose: int = 1,
+        name: str = "StockTradingEnv",
+        render_mode: Optional[str] = "logs",
+    ) -> None:
         self.max_episode_duration = max_episode_duration
         self.name = name
         self.verbose = verbose
@@ -62,7 +65,9 @@ class SingleStockTradingEnv(gym.Env):
                 -np.inf, np.inf, shape=[self.windows, self._nb_features]
             )
 
-    def _set_df(self, df):
+        self.log_metrics = []
+
+    def _set_df(self, df: pd.DataFrame) -> None:
         df = df.copy()
         self._features_columns = [col for col in df.columns if "feature" in col]
         self._info_columns = list(
@@ -80,9 +85,19 @@ class SingleStockTradingEnv(gym.Env):
         self._obs_array = np.array(self.df[self._features_columns], dtype=np.float32)
         self._info_array = np.array(self.df[self._info_columns])
         self._price_array = np.array(self.df["close"])
+        self._price_open_array = np.array(self.df["open"])
 
     def _get_price(self, delta=0):
         return self._price_array[self._idx + delta]
+
+    def _get_price_open(self, delta=0):
+        return self._price_open_array[self._idx + delta]
+
+    def add_metric(self, name, function):
+        self.log_metrics.append({
+            'name': name,
+            'function': function
+        })
 
     def _get_obs(self):
         for i, dff in enumerate(self.dynamic_feature_functions):
@@ -129,6 +144,10 @@ class SingleStockTradingEnv(gym.Env):
             position=self._position,
             data=dict(zip(self._info_columns, self._info_array[self._idx])),
             portfolio_valuation=self.portfolio_initial_value,
+            portfolio_volume=0,
+            avg_price=0,
+            unrealized_pnl=0,
+            cash=self.portfolio_initial_value,
             reward=0,
         )
 
@@ -143,20 +162,32 @@ class SingleStockTradingEnv(gym.Env):
             )
             self._position = position
 
-    def step(self, position_index=None):
-        if position_index is not None:
-            self._take_action(position=self.positions[position_index])
+    def _trade(self, position: Union[int, float]) -> bool:
+        if position != self._position:
+            self._position = position
+            return self._portfolio.trade_to_position(
+                position=position,
+                price=self._get_price_open(),
+                trading_fees=self.trading_fees,
+            )
+        return True
 
+    def step(self, position_index: int = None) -> tuple:
         self._idx += 1
         self._step += 1
+        trade_success = True
+
+        if position_index is not None:
+            trade_success = self._trade(position=self.positions[position_index])
 
         price = self._get_price()
-        portfolio_value = self._portfolio.get_port_value(price=price)
+        portfolio_stats = self._portfolio.get_port_value(price=price)
 
         done, truncated = False, False
 
-        if portfolio_value <= 0:
+        if not trade_success:
             done = True
+
         if self._idx >= len(self.df) - 1:
             truncated = True
         if (
@@ -172,7 +203,11 @@ class SingleStockTradingEnv(gym.Env):
             position_index=position_index,
             position=self._position,
             data=dict(zip(self._info_columns, self._info_array[self._idx])),
-            portfolio_valuation=portfolio_value,
+            portfolio_valuation=portfolio_stats["port_value"],
+            portfolio_volume=portfolio_stats["volume"],
+            avg_price=portfolio_stats["avg_price"],
+            unrealized_pnl=portfolio_stats["unrealized_profits"],
+            cash=portfolio_stats["remaining_cash"],
             reward=0,
         )
 
@@ -180,9 +215,11 @@ class SingleStockTradingEnv(gym.Env):
             reward = self.reward_function(self.historical_info)
             self.historical_info["reward", -1] = reward
 
-        if done or truncated:
-            pass
 
+        if done or truncated:
+            self.calculate_metrics()
+            self.log()
+        # print(done, truncated)
         return (
             self._get_obs(),
             self.historical_info["reward", -1],
@@ -190,3 +227,83 @@ class SingleStockTradingEnv(gym.Env):
             truncated,
             self.historical_info[-1],
         )
+
+    def save_for_render(self, dir="render_logs"):
+        assert "open" in self.df and "high" in self.df and "low" in self.df and "close" in self.df, "Your DataFrame needs to contain columns : open, high, low, close to render !"
+        columns = list(set(self.historical_info.columns) - set([f"date_{col}" for col in self._info_columns]))
+        history_df = pd.DataFrame(
+            self.historical_info[columns], columns=columns
+        )
+        history_df.set_index("date", inplace=True)
+        history_df.sort_index(inplace=True)
+        self.df.index = self.df.index.map(lambda x: x.values)
+        render_df = self.df.join(history_df, how="inner")
+
+        if not os.path.exists(dir): os.makedirs(dir)
+        render_df.to_pickle(f"{dir}/{self.name}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl")
+    def calculate_metrics(self):
+        self.results_metrics = {
+            "Market Return" : f"{100*(self.historical_info['data_close', -1] / self.historical_info['data_close', 0] -1):5.2f}%",
+            "Portfolio Return" : f"{100*(self.historical_info['portfolio_valuation', -1] / self.historical_info['portfolio_valuation', 0] -1):5.2f}%",
+        }
+
+        for metric in self.log_metrics:
+            self.results_metrics[metric['name']] = metric['function'](self.historical_info)
+
+    def get_metrics(self):
+        return self.results_metrics
+
+    def log(self):
+        if self.verbose > 0:
+            text = ""
+            for key, value in self.results_metrics.items():
+                text += f"{key} : {value}   |   "
+            print(text)
+
+    # def step(self, position_index=None):
+    #     if position_index is not None:
+    #         self._take_action(position=self.positions[position_index])
+
+    #     self._idx += 1
+    #     self._step += 1
+
+    #     price = self._get_price()
+    #     portfolio_value = self._portfolio.get_port_value(price=price)
+
+    #     done, truncated = False, False
+
+    #     if portfolio_value <= 0:
+    #         done = True
+    #     if self._idx >= len(self.df) - 1:
+    #         truncated = True
+    #     if (
+    #         isinstance(self.max_episode_duration, int)
+    #         and self._step >= self.max_episode_duration - 1
+    #     ):
+    #         truncated = True
+
+    #     self.historical_info.add(
+    #         idx=self._idx,
+    #         step=self._step,
+    #         date=self.df.index.values[self._idx],
+    #         position_index=position_index,
+    #         position=self._position,
+    #         data=dict(zip(self._info_columns, self._info_array[self._idx])),
+    #         portfolio_valuation=portfolio_value,
+    #         reward=0,
+    #     )
+
+    #     if not done:
+    #         reward = self.reward_function(self.historical_info)
+    #         self.historical_info["reward", -1] = reward
+
+    #     if done or truncated:
+    #         pass
+
+    #     return (
+    #         self._get_obs(),
+    #         self.historical_info["reward", -1],
+    #         done,
+    #         truncated,
+    #         self.historical_info[-1],
+    #     )
