@@ -19,6 +19,16 @@ class ActorNetwork(keras.Model):
 
         return x
 
+    def get_config(self):
+        config = super(ActorNetwork, self).get_config()
+        config.update({
+            'n_actions': self.fc3.units,
+            'fc1_dims': self.fc1.units,
+            'fc2_dims': self.fc2.units
+        })
+        return config
+
+
 
 class CriticNetwork(keras.Model):
     def __init__(self, fc1_dims=256, fc2_dims=256):
@@ -35,3 +45,11 @@ class CriticNetwork(keras.Model):
         q = self.q(x)
 
         return q
+
+    def get_config(self):
+        config = super(CriticNetwork, self).get_config()
+        config.update({
+            'fc1_dims': self.fc1.units,
+            'fc2_dims': self.fc2.units
+        })
+        return config
