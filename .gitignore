@@ -1,5 +1,5 @@
 __pycache__
-.vscode
+.vscode/launch.json
 dist
 .ipynbcheckpoints
 render_logs
