@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        "ms-python.isort",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "mhutchie.git-graph",
+        "oderwat.indent-rainbow",
+        "ms-python.vscode-pylance",
+        "ms-python.python",
+        "gruntfuggly.todo-tree"
+    ]
+}
