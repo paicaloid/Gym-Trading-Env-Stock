@@ -11,7 +11,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 # from agent import Agent
 
 
-def _read_data(file="ADVANC.csv"):
+def _read_data(file="data/ADVANC.csv"):
     df = pd.read_csv(file, parse_dates=['datetime'], index_col="datetime")
     df.sort_index(inplace=True)
     df.dropna(inplace=True)
@@ -64,11 +64,11 @@ def _train_model(df_add, policy="A2C", id="TradingEnv"):
     elif policy == "PPO":
         model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=logdir)
 
-    episodes = 1
+    episodes = 100
     for ep in range(1, episodes+1):
         model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=policy)  # noqa: E501
         model.save(f"{models_dir}/{TIMESTEPS*ep}")
-        env.unwrapped.save_for_render(dir="render_logs")
+        # env.unwrapped.save_for_render(dir="render_logs")
     env.close()
 
 
