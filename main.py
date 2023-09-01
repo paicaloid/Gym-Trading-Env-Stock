@@ -103,7 +103,7 @@ best_score = env.reward_range[0]
 # done, truncated = False, False
 
 score = 0
-episode = 100
+episode = 5
 for i in range(episode):
     print(f"episode : {i}")
     observation, info = env.reset()
@@ -129,10 +129,12 @@ for i in range(episode):
         best_score = avg_score
     i += 1
 
+    env.save_for_render(dir = "render_logs")
+
 x = [i+1 for i in range(len(score_history))]
 print(x)
 print(score_history)
-plot_learning_curve(x, score_history)
+# plot_learning_curve(x, score_history)
 # fig  = plot_learning_curve(x, score_history)
 # fig.show()
 
