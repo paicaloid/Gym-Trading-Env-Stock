@@ -9,6 +9,9 @@ my_example.py
 *.egg-info
 *.pkl
 *.ai
-
-logs/
-models/
+logs
+models
+cartpole/
+rl-baselines3-zoo/
+logs_multi/
+models_multi/
