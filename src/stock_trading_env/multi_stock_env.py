@@ -60,10 +60,10 @@ class MultiStockTradingEnv(gym.Env):
 
         self._set_df(df)
         self.action_space = spaces.MultiDiscrete([len(positions)] * len(self.all_symbols))
-        self.observation_space = spaces.Box(-np.inf, np.inf, shape=((len(self.all_symbols)) * self._nb_features,))
+        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(len(self.all_symbols) , self._nb_features))
         if self.windows is not None:
             self.observation_space = spaces.Box(
-                -np.inf, np.inf, shape=[self.windows, self._nb_features]
+                -np.inf, np.inf, shape=[len(self.all_symbols) , self.windows, self._nb_features]
             )
 
         self.log_metrics = []
@@ -84,7 +84,10 @@ class MultiStockTradingEnv(gym.Env):
             self._nb_features += 1
 
         self.df = df
-        self._obs_array = np.array(df.loc[:, df.columns.get_level_values(1).str.contains("^feature")], dtype=np.float32)
+        self._obs_array = []
+        for symbol in self.all_symbols:
+            self._obs_array.append(np.array(df[symbol].loc[:, df[symbol].columns.str.contains("^feature")], dtype=np.float32))
+        self._obs_array = np.array(self._obs_array)
         self._info_array = np.array(df.loc[:, df.columns.get_level_values(1).isin(self._info_columns)])
         self._price_array = np.array(df.loc[:, df.columns.get_level_values(1).isin(["close"])])
         self._price_open_array = np.array(df.loc[:, df.columns.get_level_values(1).isin(["open"])])
@@ -116,10 +119,10 @@ class MultiStockTradingEnv(gym.Env):
             )
 
         if self.windows is None:
-            _step_index = self._idx
+            return self._obs_array[:, self._idx, :]
         else:
             _step_index = np.arange(self._idx + 1 - self.windows, self._idx + 1)
-        return self._obs_array[_step_index]
+            return self._obs_array[:, _step_index, :]
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
