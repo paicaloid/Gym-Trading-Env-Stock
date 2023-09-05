@@ -60,7 +60,7 @@ class MultiStockTradingEnv(gym.Env):
 
         self._set_df(df)
         self.action_space = spaces.MultiDiscrete([len(positions)] * len(self.all_symbols))
-        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(len(self.all_symbols),))
+        self.observation_space = spaces.Box(-np.inf, np.inf, shape=((len(self.all_symbols)) * self._nb_features,))
         if self.windows is not None:
             self.observation_space = spaces.Box(
                 -np.inf, np.inf, shape=[self.windows, self._nb_features]

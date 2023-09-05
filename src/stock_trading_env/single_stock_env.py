@@ -45,6 +45,7 @@ class SingleStockTradingEnv(gym.Env):
         self.windows = windows
         self.portfolio_initial_value = float(portfolio_initial_value)
         self.initial_position = initial_position
+        self.date_count = 0
 
         assert (
             self.initial_position in self.positions
@@ -113,6 +114,8 @@ class SingleStockTradingEnv(gym.Env):
             self._position = np.random.choice(self.positions)
         else:
             self._position = self.initial_position
+        if self._position != 0:
+            self.date_count = 1
 
         self._idx = 0
         if self.windows is not None:
@@ -140,6 +143,7 @@ class SingleStockTradingEnv(gym.Env):
             portfolio_valuation=self.portfolio_initial_value,
             portfolio_volume=0,
             avg_price=0,
+            realized_pnl=0,
             unrealized_pnl=0,
             cash=self.portfolio_initial_value,
             reward=0,
@@ -200,14 +204,20 @@ class SingleStockTradingEnv(gym.Env):
             portfolio_valuation=portfolio_stats["port_value"],
             portfolio_volume=portfolio_stats["volume"],
             avg_price=portfolio_stats["avg_price"],
+            realized_pnl=portfolio_stats["realized_profits"],
             unrealized_pnl=portfolio_stats["unrealized_profits"],
             cash=portfolio_stats["remaining_cash"],
             reward=0,
         )
 
         if not done:
-            reward = self.reward_function(self.historical_info)
-            self.historical_info["reward", -1] = reward
+            if portfolio_stats["realized_profits"] != 0:
+                # calc new reward
+                reward = self.reward_function(self.historical_info)
+                self.date_count = 0
+                self.historical_info["reward", -1] = reward
+            if self._portfolio.size != 0:
+                self.date_count += 1
 
         if done or truncated:
             self.calculate_metrics()

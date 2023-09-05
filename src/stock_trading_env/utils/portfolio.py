@@ -24,6 +24,7 @@ class SimplePortfolio:
             self.size = 0
             self.buy_price = []
         self.cash = init_cash - (self.size * current_price)
+        self.realize_profit = 0
 
     def trade_to_position(
         self,
@@ -51,9 +52,13 @@ class SimplePortfolio:
         else:
             # sell
             self.cash = self.cash + (np.abs(size_to_trade) * price * (1 - trading_fees))
-            self.buy_price = []
+            avg_price = sum(self.buy_price) / len(self.buy_price)\
+                if len(self.buy_price) > 0 else 0
+            self.realize_profit = (np.abs(size_to_trade) * ((price * (1 - trading_fees)) - avg_price))
         self.size += size_to_trade
         self.position = position
+        if self.position == 0:
+            self.buy_price = []
         return True
 
     def get_port_value(
@@ -62,10 +67,13 @@ class SimplePortfolio:
     ):
         avg_price = sum(self.buy_price) / len(self.buy_price)\
             if len(self.buy_price) > 0 else 0
+        realize = self.realize_profit
+        self.realize_profit = 0
         return {
             "port_value" : (self.size * price) + self.cash,
             "volume" : self.size,
             "avg_price" : avg_price,
+            "realized_profits" : realize,
             "unrealized_profits" : self.size * (price - avg_price),
             "remaining_cash" : self.cash,
             }
