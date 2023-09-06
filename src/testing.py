@@ -1,6 +1,4 @@
-import torch as th
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.evaluation import evaluate_policy
 
 from gym_trading_env.renderer import Renderer
@@ -10,10 +8,10 @@ from utils.preprocess import preprocess_dataframe, train_test_dataframe
 
 df = preprocess_dataframe(
     path="examples/data/AAPL.csv",
-    indicators=False,
+    indicators=True,
 )
 
-train_df, test_df = train_test_dataframe(df, train_test_split=0.8)
+train_df, test_df = train_test_dataframe(df, train_test_split=0.7)
 
 # create env_test
 env_test = env_create(
@@ -42,7 +40,7 @@ for rep in range(5):
     )
     print(f"Eval reward: {mean_reward} (+/-{std_reward})")
 
-# testing
+
 test_process(env_test, model)
 
 
