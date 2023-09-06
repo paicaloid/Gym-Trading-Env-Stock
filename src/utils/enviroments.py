@@ -37,10 +37,7 @@ def env_create(
 
 
 def add_metric(env: gym.Env):
-    env.add_metric("Reward", lambda history: history["reward"][-1])
-    env.add_metric(
-        "Portfolio Valuation", lambda history: history["portfolio_valuation"][-1]
-    )
+    env.add_metric("mean_reward", lambda history: np.mean(history["reward"]))
     return env
 
 
@@ -56,17 +53,18 @@ def model_create(
     policy_kwargs: dict,
     tensorboard_log: str,
 ):
-    env = Monitor(env)
+    monitor_dir = "./models/monitor/"
+    env = Monitor(env, monitor_dir)
     model = PPO(
         "MlpPolicy",
         env,
-        n_steps=1024,
-        batch_size=64,
-        gae_lambda=0.98,
-        gamma=0.999,
-        n_epochs=4,
-        ent_coef=0.01,
-        verbose=1,
+        n_steps=n_steps,
+        batch_size=batch_size,
+        gae_lambda=gae_lambda,
+        gamma=gamma,
+        n_epochs=n_epochs,
+        ent_coef=ent_coef,
+        verbose=verbose,
         policy_kwargs=policy_kwargs,
         tensorboard_log="./PPO_tensorboard/",
     )
