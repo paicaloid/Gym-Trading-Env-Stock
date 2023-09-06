@@ -8,10 +8,10 @@ from utils.preprocess import preprocess_dataframe, train_test_dataframe
 # prepare data
 df = preprocess_dataframe(
     path="examples/data/AAPL.csv",
-    indicators=False,
+    indicators=True,
 )
 
-train_df, test_df = train_test_dataframe(df, train_test_split=0.8)
+train_df, test_df = train_test_dataframe(df, train_test_split=0.7)
 
 # create env_train
 env_train = env_create(
@@ -31,7 +31,7 @@ env_train = env_create(
 env_train = add_metric(env_train)
 
 # define model
-policy_kwargs = dict(activation_fn=th.nn.ReLU, net_arch=[256, 128])
+policy_kwargs = dict(activation_fn=th.nn.ReLU, net_arch=[256, 256])
 model = model_create(
     env=env_train,
     n_steps=2048,
@@ -42,7 +42,7 @@ model = model_create(
     ent_coef=0.01,
     verbose=0,
     policy_kwargs=policy_kwargs,
-    tensorboard_log="./PPO_tensorboard/",
+    tensorboard_log="./PPO_tensorboard",
 )
 
 # create callback
@@ -50,12 +50,12 @@ eval_callback = EvalCallback(
     env_train,
     best_model_save_path="./models/",
     log_path="./logs/",
-    eval_freq=500,
+    eval_freq=1000,
     deterministic=False,
     render=False,
 )
 
 # training
 model.learn(
-    total_timesteps=50000, callback=eval_callback, tb_log_name="PPO", progress_bar=True
+    total_timesteps=10000, callback=eval_callback, tb_log_name="PPO", progress_bar=True
 )
